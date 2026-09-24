@@ -31,14 +31,13 @@ function normalizeEmailList(value, context) {
 function normalizeEntry(entry) {
   if (typeof entry === "string") {
     const url = entry.trim();
-    return { url, label: autoLabel(url), emailTo: config.smtp.defaultEmailTo };
+    return { url, label: autoLabel(url), emailTo: [] };
   }
 
   if (entry && typeof entry === "object" && entry.url) {
     const url = entry.url.trim();
     const label = entry.label || autoLabel(url);
-    const emailTo =
-      entry.email_to !== undefined ? normalizeEmailList(entry.email_to, label) : config.smtp.defaultEmailTo;
+    const emailTo = entry.email_to !== undefined ? normalizeEmailList(entry.email_to, label) : [];
     return { url, label, emailTo };
   }
 
@@ -82,7 +81,7 @@ function loadWatchUrls() {
     seen.add(entry.url);
 
     if (entry.emailTo.length === 0) {
-      console.warn(`[urls] "${entry.label}" nema zadne email_to ani vychozi SMTP_TO - report se pro ni nikam neposle.`);
+      console.warn(`[urls] "${entry.label}" nema zadne email_to - report se pro ni nikam neposle.`);
     }
   }
 

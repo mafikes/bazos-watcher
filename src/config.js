@@ -20,10 +20,5 @@ module.exports = {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    // vychozi prijemci pro URL v urls.json, ktere nemaji vlastni "email_to"
-    defaultEmailTo: (process.env.SMTP_TO || process.env.SMTP_USER || "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
   },
 };

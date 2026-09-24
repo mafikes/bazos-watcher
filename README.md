@@ -33,7 +33,7 @@ Uprav `.env`:
 
 - `CRON_SCHEDULE` — jak často se má scraper spouštět, když běží jako démon (node-cron syntax, např. `*/15 * * * *` = každých 15 minut).
 - `MAX_PAGES` — pojistka, kolik stránek výpisu se maximálně projde na jednu URL (výchozí 50).
-- `SMTP_*` — přístup k tvému SMTP (Gmail apod.). `SMTP_TO` je výchozí příjemce pro URL, které v `urls.json` nemají vlastní `email_to`.
+- `SMTP_*` — přístup k tvému SMTP (Gmail apod.). Příjemci se nenastavují tady, ale u každé URL zvlášť v `data/urls.json` (pole `email_to`).
 
 ### Gmail SMTP
 
@@ -100,8 +100,8 @@ volitelným `email_to`:
 ```
 
 - `label` — jen pro přehlednost v konzoli/emailu; když ho nedáš, dopočítá se automaticky z hostname a parametru `hledat`.
-- `email_to` — pole emailových adres, kterým se mají posílat reporty (nové/zlevněné nabídky) **jen pro tuhle URL**. Report na danou URL se vždy pošle úplně všem, kdo je tam uvedený. Když `email_to` u položky nedáš vůbec, použije se výchozí `SMTP_TO` z `.env`. Když tam dáš prázdné pole `[]`, pro tuhle URL se neodešle žádný email (jen se to zapíše do konzole a databáze).
-- Prostý string místo objektu (jen URL) funguje taky — chová se jako `{"url": "..."}` bez labelu a s výchozím `email_to` ze `SMTP_TO`.
+- `email_to` — pole emailových adres, kterým se mají posílat reporty (nové/zlevněné nabídky) **jen pro tuhle URL**. Report na danou URL se vždy pošle úplně všem, kdo je tam uvedený. Jiné nastavení příjemců v projektu není — když `email_to` u položky nedáš (nebo dáš prázdné pole `[]`), pro tuhle URL se neodešle žádný email, jen se zapíše do konzole a databáze.
+- Prostý string místo objektu (jen URL) funguje taky — chová se jako `{"url": "..."}` bez labelu a bez `email_to` (tedy se nikam neposílá, dokud URL nepřepíšeš na objekt s `email_to`).
 
 Klidně přidej další URL do pole — scraper je projde postupně (s prodlevou
 `REQUEST_DELAY_MS` mezi nimi), každou s vlastní databází a vlastním
