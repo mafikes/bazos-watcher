@@ -1,0 +1,18 @@
+{
+  "name": "bazos-watcher",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sleduje inzeraty na Bazos.cz, porovnava ceny/nove nabidky a posila email report",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "run-once": "node src/scraper.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.16"
+  }
+}
