@@ -3,21 +3,23 @@
 Sleduje libovolný počet vypisů na Bazos.cz (i s více stránkami), ukladá si
 nalezené inzeráty do lokální JSON databáze (zvlášť pro každou URL) a při
 dalším běhu porovnává staré a nové stavy. Pokud se objeví nová nabídka nebo
-nabídka zlevní, pošle jeden souhrnný e-mailový report přes SMTP.
+nabídka zlevní, pošle e-mailový report přes SMTP — každému příjemci z
+`email_to` dané URL (viz [Více URL](#více-url)).
 
 Scraper ignoruje `robots.txt` (axios/cheerio ho nijak nevynucují) — jen mezi
-requesty (další stránka výpisu, detail inzerátu, další sledovaná URL) čeká
-`REQUEST_DELAY_MS`, aby zbytečně nezatěžoval server.
+requesty (další stránka výpisu, další sledovaná URL) čeká `REQUEST_DELAY_MS`,
+aby zbytečně nezatěžoval server. Detail jednotlivého inzerátu se nikdy
+nestahuje (viz bod 4 níže), takže jediné requesty jsou na stránky výpisu.
 
 ## Jak to funguje
 
 1. Načte seznam sledovaných URL z `data/urls.json`.
 2. Pro každou URL stáhne stránku 1, 2, 3... (`.../20/`, `.../40/`, ... nebo `?crz=20`, `?crz=40`, ... podle typu stránky — viz [Stránkování](#stránkování)) a cheeriem projde všechny `.inzeraty.inzeratyflex`.
 3. Z `h2.nadpis a` vezme titulek a odkaz (relativní i absolutní), z odkazu (`/inzerat/<ID>/...`) vyparsuje ID inzerátu.
-4. Z `.inzeratycena b span` vezme cenu.
-5. Pokud je inzerát nový (ID v databázi pro danou URL není), stáhne i popis z detailu (`div.popisdetail`) a uloží ho.
+4. Z `.inzeratycena b span` vezme cenu — je rovnou ve výpisu, takže se **nikdy nestahuje detail jednotlivého inzerátu** (proto to jede rychle i na první běh s desítkami nových nabídek).
+5. Pokud je inzerát nový (ID v databázi pro danou URL není), uloží ho.
 6. Pokud inzerát existuje a nová cena je nižší než uložená, označí ho jako slevu.
-7. Vše vypíše do konzole a nové/zlevněné položky napříč všemi URL pošle v jednom e-mailu, seskupené podle URL/labelu (pokud je nastavené SMTP).
+7. Vše vypíše do konzole a nové/zlevněné položky rozešle e-mailem — každý příjemce z `email_to` dostane jeden souhrnný e-mail se všemi nabídkami ze všech URL, kde je uvedený (pokud je nastavené SMTP).
 8. Aktualizovaná databáze dané URL se uloží zpět do `data/db/<hash>.json`.
 
 ## Instalace
@@ -27,7 +29,9 @@ npm install
 cp .env.example .env
 ```
 
-Uprav `data/urls.json` — seznam URL, které chceš sledovat (viz [Více URL](#více-url)).
+Vytvoř/uprav `data/urls.json` — seznam URL, které chceš sledovat, včetně
+příjemců e-mailu (viz [Více URL](#více-url)). Soubor je povinný, bez něj
+scraper hned na startu skončí chybou.
 
 Uprav `.env`:
 
@@ -110,9 +114,8 @@ dostane jeden souhrnný email se všemi svými nabídkami (ne email za každou U
 zvlášť); email s nabídkami rozdělenými podle URL/labelu dostane vždy jen ten,
 kdo je u dané URL v `email_to` uvedený.
 
-Pokud `data/urls.json` neexistuje, scraper ho při prvním spuštění založí — buď
-s jedinou URL ze `SEARCH_URL` v `.env` (pokud je nastavená), nebo prázdný (a
-pak skončí s chybou, dokud tam nějakou URL nepřidáš).
+Pokud `data/urls.json` neexistuje (nebo je prázdný/bez URL), scraper skončí
+chybou — soubor si musíš založit ručně s aspoň jednou URL.
 
 ## Stránkování
 
@@ -141,9 +144,9 @@ jde změnit v `.env`). Když URL v `urls.json` upravíš (i jen o jeden znak),
 vygeneruje se pro ni nový hash, tedy nový (prázdný) databázový soubor — starý
 zůstane na disku nepoužitý, můžeš ho smazat.
 
-V každém souboru je klíč ID inzerátu, hodnota obsahuje titulek, URL, cenu,
-popis a časy prvního/posledního nalezení. Smazáním souboru (nebo konkrétního
-klíče v něm) donutíš scraper, aby danou nabídku příště vyhodnotil znovu jako
+V každém souboru je klíč ID inzerátu, hodnota obsahuje titulek, URL, cenu a
+časy prvního/posledního nalezení. Smazáním souboru (nebo konkrétního klíče
+v něm) donutíš scraper, aby danou nabídku příště vyhodnotil znovu jako
 "novou".
 
 `data/db/_index.json` mapuje hash → původní URL/label/čas posledního běhu,

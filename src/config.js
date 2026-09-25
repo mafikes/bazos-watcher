@@ -2,9 +2,6 @@ require("dotenv").config();
 const path = require("path");
 
 module.exports = {
-  // legacy jednoduche nastaveni jedne URL - pouzije se jen pri zakladani noveho urls.json
-  legacySearchUrl: process.env.SEARCH_URL || null,
-
   urlsFilePath: path.resolve(process.cwd(), process.env.URLS_FILE || "./data/urls.json"),
   dbDir: path.resolve(process.cwd(), process.env.DB_DIR || "./data/db"),
 

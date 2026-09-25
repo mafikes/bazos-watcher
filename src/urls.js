@@ -1,5 +1,4 @@
 const fs = require("fs");
-const path = require("path");
 const config = require("./config");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,21 +43,12 @@ function normalizeEntry(entry) {
   throw new Error(`Neplatna polozka v ${config.urlsFilePath}: ${JSON.stringify(entry)}`);
 }
 
-function seedDefaultFile() {
-  fs.mkdirSync(path.dirname(config.urlsFilePath), { recursive: true });
-  const seed = config.legacySearchUrl ? [config.legacySearchUrl] : [];
-  fs.writeFileSync(config.urlsFilePath, JSON.stringify(seed, null, 2), "utf-8");
-  return seed;
-}
-
 function loadWatchUrls() {
   if (!fs.existsSync(config.urlsFilePath)) {
-    console.warn(
-      `[urls] ${config.urlsFilePath} neexistuje, zakladam ho${
-        config.legacySearchUrl ? " s URL z SEARCH_URL" : " prazdny"
-      }.`
+    throw new Error(
+      `${config.urlsFilePath} neexistuje. Vytvor ho s polem sledovanych URL, priklad obsahu: ` +
+        `[{"url": "https://pc.bazos.cz/monitor/?hledat=benq...", "label": "BenQ monitory", "email_to": ["a@example.com"]}]`
     );
-    seedDefaultFile();
   }
 
   const raw = fs.readFileSync(config.urlsFilePath, "utf-8").trim();

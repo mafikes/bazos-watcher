@@ -118,18 +118,7 @@ async function fetchAllPages(baseUrl, label) {
   return allItems;
 }
 
-async function fetchDescription(url) {
-  try {
-    const html = await fetchHtml(url);
-    const $ = cheerio.load(html);
-    return $("div.popisdetail").first().text().trim();
-  } catch (err) {
-    console.error(`[scraper] Nepodarilo se stahnout popis z ${url}: ${err.message}`);
-    return null;
-  }
-}
-
-async function processItems(items, store, label) {
+function processItems(items, store, label) {
   const newListings = [];
   const cheaperListings = [];
 
@@ -138,14 +127,10 @@ async function processItems(items, store, label) {
     const tagged = { ...item, sourceLabel: label };
 
     if (!existing) {
-      const description = await fetchDescription(item.url);
-      await sleep(config.requestDelayMs);
-
       store[item.id] = {
         title: item.title,
         url: item.url,
         price: item.price,
-        description,
         firstSeen: new Date().toISOString(),
         lastSeen: new Date().toISOString(),
       };
@@ -205,7 +190,7 @@ async function runOnce() {
     console.log(`[scraper] [${label}] celkem ${listingItems.length} inzeratu pres vsechny stranky.`);
 
     const store = db.loadForUrl(url);
-    const { newListings, cheaperListings } = await processItems(listingItems, store, label);
+    const { newListings, cheaperListings } = processItems(listingItems, store, label);
     db.saveForUrl(url, store);
 
     allNew.push(...newListings);
