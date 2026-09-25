@@ -29,9 +29,19 @@ npm install
 cp .env.example .env
 ```
 
-Vytvoř/uprav `data/urls.json` — seznam URL, které chceš sledovat, včetně
-příjemců e-mailu (viz [Více URL](#více-url)). Soubor je povinný, bez něj
-scraper hned na startu skončí chybou.
+Zkopíruj vzorový soubor a uprav ho podle svého:
+
+```bash
+cp data/urls.example.json data/urls.json
+```
+
+`data/urls.example.json` obsahuje ukázkovou položku (jedno sledované URL na
+Bazosu s jedním e-mailovým příjemcem) — v `data/urls.json` ji uprav nebo
+přepiš vlastními URL a e-maily (viz [Více URL](#více-url)). `data/urls.json`
+je v `.gitignore` (obsahuje tvoje osobní e-maily), takže se do gitu necommitne
+— `data/urls.example.json` zůstává v repu jako šablona pro každého, kdo si
+projekt nastavuje. Soubor `data/urls.json` je povinný, bez něj scraper hned na
+startu skončí chybou.
 
 Uprav `.env`:
 
@@ -82,6 +92,36 @@ pm2 startup                 # nastavi automaticky start po rebootu serveru (spus
 
 V tomhle případě `src/index.js` (s node-cronem) nepoužívej — stačí `src/scraper.js`.
 
+### Nasazení přes Coolify (Docker)
+
+Projekt obsahuje `Dockerfile`, který spouští `src/index.js` (démon s
+node-cronem) — v Coolify stačí založit novou službu typu "Dockerfile" nad
+tímhle repem, nic dalšího se nastavovat nemusí.
+
+V Coolify na záložce **Storages** dané služby přidej dvě persistentní
+úložiště:
+
+1. **File mount pro `urls.json`** — typ "File", destination path
+   `/app/data/urls.json`. Coolify u tohoto typu ukazuje textové pole přímo
+   v UI, kam vložíš obsah — zkopíruj tam obsah `data/urls.example.json`
+   z repa a uprav si URL/`email_to` podle sebe (viz [Více URL](#více-url)).
+   Soubor tak žije jen v Coolify (bind-mount na hostu), needituje se přes
+   shell a přežije redeploy i update image.
+2. **Volume pro databázi** — typ "Directory"/"Volume", destination path
+   `/app/data/db`. Sem se ukládají soubory `<hash>.json` s historií
+   nalezených inzerátů — bez tohohle by se při každém redeploy/restartu
+   smazala a scraper by všechno vyhodnotil znovu jako nové.
+
+Po úpravě obsahu file mountu v Coolify UI je potřeba službu restartovat, aby
+si scraper přečetl nový `urls.json` (bere se jen při startu kontejneru, ne za
+běhu).
+
+**Environment variables** — v Coolify nastav proměnné ze `.env.example`
+(`CRON_SCHEDULE`, `SMTP_*` atd.) přímo přes UI (sekci Environment
+Variables), soubor `.env` se do image nekopíruje. `URLS_FILE` a `DB_DIR`
+není potřeba nastavovat, výchozí `./data/urls.json` a `./data/db` uvnitř
+kontejneru odpovídají oběma storages výše.
+
 ## Více URL
 
 Sledované vypisy se nastavují v `data/urls.json` — JSON pole, kde každá
@@ -115,7 +155,8 @@ zvlášť); email s nabídkami rozdělenými podle URL/labelu dostane vždy jen 
 kdo je u dané URL v `email_to` uvedený.
 
 Pokud `data/urls.json` neexistuje (nebo je prázdný/bez URL), scraper skončí
-chybou — soubor si musíš založit ručně s aspoň jednou URL.
+chybou — soubor si musíš založit ručně podle `data/urls.example.json` (viz
+[Instalace](#instalace)).
 
 ## Stránkování
 
