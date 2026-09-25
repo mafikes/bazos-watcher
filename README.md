@@ -11,6 +11,11 @@ requesty (další stránka výpisu, další sledovaná URL) čeká `REQUEST_DELA
 aby zbytečně nezatěžoval server. Detail jednotlivého inzerátu se nikdy
 nestahuje (viz bod 4 níže), takže jediné requesty jsou na stránky výpisu.
 
+Repo obsahuje `Dockerfile` + `docker-compose.yml` a dá se rovnou nasadit přes
+[Coolify](https://coolify.io/) (viz [Nasazení přes Coolify](#nasazení-přes-coolify-docker-compose))
+— stačí založit službu typu "Docker Compose" nad tímhle repem, Environment
+Variables i Persistent Storage se předvyplní automaticky z compose souboru.
+
 ## Jak to funguje
 
 1. Načte seznam sledovaných URL z `data/urls.json`.
@@ -92,35 +97,42 @@ pm2 startup                 # nastavi automaticky start po rebootu serveru (spus
 
 V tomhle případě `src/index.js` (s node-cronem) nepoužívej — stačí `src/scraper.js`.
 
-### Nasazení přes Coolify (Docker)
+### Nasazení přes Coolify (Docker Compose)
 
-Projekt obsahuje `Dockerfile`, který spouští `src/index.js` (démon s
-node-cronem) — v Coolify stačí založit novou službu typu "Dockerfile" nad
-tímhle repem, nic dalšího se nastavovat nemusí.
+Projekt obsahuje `docker-compose.yml` (staví se z `Dockerfile` v repu) — v
+Coolify založ novou službu typu **Docker Compose** nad tímhle repem a ukaž ji
+na tenhle soubor. Díky compose souboru Coolify automaticky detekuje a
+předvyplní jak Environment Variables, tak Persistent Storage — nic z toho
+není potřeba klikat ručně po jednom.
 
-V Coolify na záložce **Storages** dané služby přidej dvě persistentní
-úložiště:
+**Environment variables** — `docker-compose.yml` referencuje proměnné jako
+`${SMTP_USER}`, `${SMTP_PASS}` atd. Coolify je z compose souboru přečte a
+zobrazí v záložce Environment Variables rovnou po založení služby, stačí
+doplnit hodnoty. `SMTP_USER` a `SMTP_PASS` jsou označené jako povinné
+(`:?`) — bez nich Coolify deploy odmítne spustit. Ostatní (`CRON_SCHEDULE`,
+`SMTP_HOST`, `MAX_PAGES`, ...) mají rozumné výchozí hodnoty stejné jako
+`.env.example`, není potřeba je nastavovat, pokud nechceš něco změnit.
 
-1. **File mount pro `urls.json`** — typ "File", destination path
-   `/app/data/urls.json`. Coolify u tohoto typu ukazuje textové pole přímo
-   v UI, kam vložíš obsah — zkopíruj tam obsah `data/urls.example.json`
-   z repa a uprav si URL/`email_to` podle sebe (viz [Více URL](#více-url)).
-   Soubor tak žije jen v Coolify (bind-mount na hostu), needituje se přes
-   shell a přežije redeploy i update image.
-2. **Volume pro databázi** — typ "Directory"/"Volume", destination path
-   `/app/data/db`. Sem se ukládají soubory `<hash>.json` s historií
-   nalezených inzerátů — bez tohohle by se při každém redeploy/restartu
-   smazala a scraper by všechno vyhodnotil znovu jako nové.
+**Persistent storage** — taky se detekuje z compose souboru automaticky a
+objeví se v záložce Persistent Storage:
 
-Po úpravě obsahu file mountu v Coolify UI je potřeba službu restartovat, aby
-si scraper přečetl nový `urls.json` (bere se jen při startu kontejneru, ne za
-běhu).
+- **`bazos-db` volume** na `/app/data/db` — historie nalezených inzerátů,
+  přežije redeploy i restart.
+- **File mount `urls.json`** na `/app/data/urls.json` — compose soubor mu dal
+  počáteční obsah (ukázková URL, stejná jako v `data/urls.example.json`),
+  Coolify z něj soubor při prvním deployi rovnou vytvoří. Dál ho uprav přímo
+  v Coolify UI (Persistent Storage → daný file mount → Content), vlož si
+  vlastní URL a `email_to` (viz [Více URL](#více-url)) a ulož. Po uložení
+  službu restartuj, ať si scraper přečte nový obsah (bere se jen při startu
+  kontejneru, ne za běhu).
 
-**Environment variables** — v Coolify nastav proměnné ze `.env.example`
-(`CRON_SCHEDULE`, `SMTP_*` atd.) přímo přes UI (sekci Environment
-Variables), soubor `.env` se do image nekopíruje. `URLS_FILE` a `DB_DIR`
-není potřeba nastavovat, výchozí `./data/urls.json` a `./data/db` uvnitř
-kontejneru odpovídají oběma storages výše.
+> `content:` u bind mountu v `docker-compose.yml` je Coolify-specifické
+> rozšíření (Coolify si tím řekne, aby soubor sám vytvořil) — validní
+> docker-compose podle standardní specifikace to není, takže `docker compose
+> up`/`docker compose config` mimo Coolify tenhle soubor odmítnou schema
+> chybou (`additional properties 'content' not allowed`). Pro lokální test
+> v Dockeru bez Coolify použij rovnou `docker build .` + `docker run` (viz
+> výš), ne `docker compose up`.
 
 ## Více URL
 

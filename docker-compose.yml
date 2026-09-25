@@ -1,0 +1,31 @@
+services:
+  bazos-watcher:
+    build: .
+    restart: unless-stopped
+    environment:
+      - CRON_SCHEDULE=${CRON_SCHEDULE:-*/15 * * * *}
+      - REQUEST_DELAY_MS=${REQUEST_DELAY_MS:-1500}
+      - MAX_PAGES=${MAX_PAGES:-50}
+      - PAGE_SIZE=${PAGE_SIZE:-20}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_SECURE=${SMTP_SECURE:-true}
+      - SMTP_USER=${SMTP_USER:?musis nastavit SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS:?musis nastavit SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-}
+    volumes:
+      - type: bind
+        source: ./data/urls.json
+        target: /app/data/urls.json
+        content: |
+          [
+            {
+              "url": "https://www.bazos.cz/search.php?hledat=apple+studio+display&rubriky=www&hlokalita=&humkreis=25&cenaod=&cenado=&Submit=Hledat&order=&kitx=ano",
+              "label": "Apple Studio Display",
+              "email_to": ["tvuj@email.cz"]
+            }
+          ]
+      - bazos-db:/app/data/db
+
+volumes:
+  bazos-db:
