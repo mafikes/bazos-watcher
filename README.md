@@ -61,7 +61,24 @@ Gmail nepovolí přihlášení běžným heslem přes SMTP. Je potřeba:
 1. Zapnout dvoufázové ověření na Google účtu.
 2. Vygenerovat **App Password** (Google účet → Zabezpečení → Ověření ve dvou krocích → Hesla aplikací).
 3. Do `SMTP_USER` dát celou e-mailovou adresu, do `SMTP_PASS` vygenerované 16znakové heslo.
-4. `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`.
+4. `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_SECURE=false`.
+
+> **Port 587, ne 465.** Hodně VPS providerů (typicky **Hetzner**) defaultně
+> blokuje odchozí porty 25 a 465 kvůli ochraně proti spamu — 587 (STARTTLS)
+> blokovaný nebývá. Pokud email neodchází a v logu vidíš
+> `Error: Connection timeout ... code: 'ETIMEDOUT', command: 'CONN'`, je to
+> přesně tenhle případ. U Hetzneru jde 465 po měsíci a první zaplacené
+> faktuře požádat o odblokování (case-by-case), ale je jednodušší zůstat na
+> 587. Ověřit si to můžeš přímo v běžícím kontejneru:
+>
+> ```bash
+> node -e "
+> require('net').connect({host:'smtp.gmail.com', port:587, timeout:8000})
+>   .on('connect', () => { console.log('587 OK'); process.exit(0); })
+>   .on('timeout', () => { console.log('587 TIMEOUT'); process.exit(1); })
+>   .on('error', (e) => { console.log('587 ERROR', e.message); process.exit(1); });
+> "
+> ```
 
 ## Spuštění
 
