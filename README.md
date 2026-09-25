@@ -100,10 +100,48 @@ V tomhle případě `src/index.js` (s node-cronem) nepoužívej — stačí `src
 ### Nasazení přes Coolify (Docker Compose)
 
 Projekt obsahuje `docker-compose.yml` (staví se z `Dockerfile` v repu) — v
-Coolify založ novou službu typu **Docker Compose** nad tímhle repem a ukaž ji
-na tenhle soubor. Díky compose souboru Coolify automaticky detekuje a
-předvyplní jak Environment Variables, tak Persistent Storage — nic z toho
-není potřeba klikat ručně po jednom.
+Coolify založ novou službu typu **Docker Compose** nad tímhle repem. Díky
+compose souboru Coolify automaticky detekuje a předvyplní jak Environment
+Variables, tak Persistent Storage — nic z toho není potřeba klikat ručně po
+jednom.
+
+> Coolify si při zakládání služby sám nastaví "Docker Compose Location"
+> (Configuration → General) — někdy defaultně na `/docker-compose.yaml`. Naše
+> repo má `.yml`, takže pokud Coolify hlásí chybu "Docker Compose file not
+> found at: /docker-compose.yaml", jdi do Configuration → General a přepiš
+> "Docker Compose Location" na `/docker-compose.yml`. Přípona samotná
+> (`.yml` vs `.yaml`) je funkčně jedno, Coolify jen nezkouší obě automaticky
+> — musí přesně sedět s tím, co je nastavené v tomhle poli.
+
+**Ruční spuštění přes Docker (bez Coolify)** — pro test lokálně nebo nasazení
+na vlastní server bez Coolify. `docker-compose.yml` v repu kvůli `content:`
+rozšíření (viz níže) mimo Coolify nejede, takže se použije přímo `Dockerfile`:
+
+```bash
+docker build -t bazos-watcher .
+
+cp .env.example .env               # a uprav si hodnoty
+cp data/urls.example.json data/urls.json   # a uprav si URL/email_to
+
+docker run -d \
+  --name bazos-watcher \
+  --restart unless-stopped \
+  --env-file .env \
+  -v "$(pwd)/data/urls.json:/app/data/urls.json" \
+  -v bazos-db:/app/data/db \
+  bazos-watcher
+```
+
+```bash
+docker logs -f bazos-watcher                                  # sledovani konzole
+docker inspect --format='{{json .State.Health}}' bazos-watcher | jq   # stav healthchecku
+docker stop bazos-watcher && docker rm bazos-watcher           # zastaveni/smazani
+```
+
+`-v bazos-db:/app/data/db` vytvoří pojmenovaný Docker volume (přežije
+`docker rm`/redeploy, dokud ho sám nesmažeš přes `docker volume rm`);
+`data/urls.json` se mountuje přímo jako bind mount z hostitele, takže ho
+můžeš normálně editovat v editoru na disku bez zásahu do kontejneru.
 
 **Environment variables** — `docker-compose.yml` referencuje proměnné jako
 `${SMTP_USER}`, `${SMTP_PASS}` atd. Coolify je z compose souboru přečte a
@@ -133,6 +171,32 @@ objeví se v záložce Persistent Storage:
 > chybou (`additional properties 'content' not allowed`). Pro lokální test
 > v Dockeru bez Coolify použij rovnou `docker build .` + `docker run` (viz
 > výš), ne `docker compose up`.
+
+**Proč v Dockeru není pm2** — na baremetal/VM (viz
+[Nasazení na server na pozadí](#nasazení-na-server-na-pozadí)) řeší pm2 dvě
+věci: přežití procesu po odhlášení ze SSH a restart po pádu/rebootu. V
+Dockeru dělá obojí kontejner sám (`restart: unless-stopped` + healthcheck
+níže), takže `node src/index.js` běží rovnou jako hlavní proces kontejneru
+— přidávat tam pm2 by byla zbytečná vrstva navíc.
+
+**Healthcheck** — `index.js` si při každém skutečném běhu (ne přeskočeném
+kvůli překryvu, viz [Jak to funguje](#jak-to-funguje)) zapíše timestamp do
+heartbeat souboru. `docker-compose.yml` i `Dockerfile` mají nastavený
+`healthcheck`, který každou minutu spouští `node src/healthcheck.js` — ten
+porovná stáří heartbeatu s povoleným prahem. Pokud je moc starý (proces
+spadl nebo scraper zatuhl a heartbeat se dál nezapisuje), healthcheck po
+pár neúspěšných pokusech (`retries: 3`) nahlásí kontejner jako unhealthy a
+Coolify/Docker ho restartuje.
+
+Práh se **počítá automaticky z `CRON_SCHEDULE`** (`src/heartbeat.js`, pomocí
+knihovny `cron-parser`) — vezme nejdelší mezeru mezi několika nadcházejícími
+běhy a přidá 5minutovou rezervu. Díky tomu healthcheck funguje správně i při
+řídkém plánu (`CRON_SCHEDULE=0 * * * *` jednou za hodinu, `0 3 * * *` jednou
+denně...) — s pevně danou konstantou (např. 20 minut) by u takového plánu
+healthcheck mezi jednotlivými běhy pořád falešně hlásil unhealthy a kontejner
+by se donekonečna zbytečně restartoval. Pokud bys přesto chtěl práh přebít
+ručně, jde nastavit `HEALTHCHECK_MAX_AGE_SEC` (v sekundách) — pak se
+automatický výpočet z `CRON_SCHEDULE` ignoruje.
 
 ## Více URL
 

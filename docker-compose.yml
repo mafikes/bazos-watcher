@@ -13,6 +13,14 @@ services:
       - SMTP_USER=${SMTP_USER:?musis nastavit SMTP_USER}
       - SMTP_PASS=${SMTP_PASS:?musis nastavit SMTP_PASS}
       - SMTP_FROM=${SMTP_FROM:-}
+      # necham prazdne - prah se pak spocita automaticky z CRON_SCHEDULE (viz README)
+      - HEALTHCHECK_MAX_AGE_SEC=${HEALTHCHECK_MAX_AGE_SEC:-}
+    healthcheck:
+      test: ["CMD", "node", "src/healthcheck.js"]
+      interval: 1m
+      timeout: 5s
+      start_period: 30s
+      retries: 3
     volumes:
       - type: bind
         source: ./data/urls.json
